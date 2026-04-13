@@ -6,19 +6,20 @@ local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
-local gui = Instance.new("ScreenGui", player.PlayerGui)
+local gui = Instance.new("ScreenGui")
+gui.Parent = player.PlayerGui
 gui.ResetOnSpawn = false
 
--- 🔴 CONTOUR
+-- CONTOUR
 local border = Instance.new("Frame", gui)
-border.Size = UDim2.new(0, 356, 0, 436)
-border.Position = UDim2.new(0.05, -8, 0.2, -8)
+border.Size = UDim2.new(0,356,0,436)
+border.Position = UDim2.new(0.05,-8,0.2,-8)
 border.BackgroundColor3 = Color3.fromRGB(255,0,0)
 border.ZIndex = 0
-Instance.new("UICorner", border).CornerRadius = UDim.new(0,18)
+Instance.new("UICorner", border)
 
-local borderGrad = Instance.new("UIGradient", border)
-borderGrad.Color = ColorSequence.new{
+local grad = Instance.new("UIGradient", border)
+grad.Color = ColorSequence.new{
 	ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
 	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,180,180)),
 	ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
@@ -26,27 +27,24 @@ borderGrad.Color = ColorSequence.new{
 
 task.spawn(function()
 	while true do
-		TweenService:Create(borderGrad, TweenInfo.new(2), {
-			Rotation = borderGrad.Rotation + 180
-		}):Play()
+		TweenService:Create(grad, TweenInfo.new(2), {Rotation = grad.Rotation + 180}):Play()
 		task.wait(2)
 	end
 end)
 
 -- FRAME
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 340, 0, 420)
-frame.Position = UDim2.new(0.05, 0, 0.2, 0)
+frame.Size = UDim2.new(0,340,0,420)
+frame.Position = UDim2.new(0.05,0,0.2,0)
 frame.BackgroundColor3 = Color3.fromRGB(10,10,15)
-frame.Active = true
 frame.ZIndex = 1
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", frame)
 
 -- TOP
 local top = Instance.new("Frame", frame)
 top.Size = UDim2.new(1,0,0,45)
 top.BackgroundColor3 = Color3.fromRGB(15,15,25)
-Instance.new("UICorner", top).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", top)
 
 local title = Instance.new("TextLabel", top)
 title.Size = UDim2.new(1,0,1,0)
@@ -56,27 +54,7 @@ title.Font = Enum.Font.GothamBlack
 title.TextSize = 20
 title.TextColor3 = Color3.fromRGB(255,60,60)
 
--- boutons
-local function createBtn(text, index)
-	local b = Instance.new("TextButton", top)
-	b.Size = UDim2.new(0,36,0,30)
-	b.Position = UDim2.new(1, -(index * 42), 0.5, -15)
-	b.Text = text
-	b.BackgroundColor3 = Color3.fromRGB(30,30,40)
-	b.TextColor3 = Color3.new(1,1,1)
-	b.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", b)
-	return b
-end
-
-local close = createBtn("X",1)
-local mini = createBtn("-",2)
-
-close.MouseButton1Click:Connect(function()
-	gui:Destroy()
-end)
-
--- drag FIX
+-- DRAG FIX
 local dragging = false
 local dragStart, startPos
 
@@ -97,30 +75,27 @@ end)
 UIS.InputChanged:Connect(function(input)
 	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - dragStart
-
 		frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		border.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X - 8, startPos.Y.Scale, startPos.Y.Offset + delta.Y - 8)
 	end
 end)
 
--- =========================
--- 🔥 FINDER
--- =========================
-
+-- SCROLL
 local scroll = Instance.new("ScrollingFrame", frame)
 scroll.Size = UDim2.new(1,-10,1,-110)
 scroll.Position = UDim2.new(0,5,0,50)
 scroll.BackgroundTransparency = 1
-scroll.ScrollBarThickness = 6
+scroll.ZIndex = 1
 scroll.CanvasSize = UDim2.new(0,0,0,0)
 
 local layout = Instance.new("UIListLayout", scroll)
 layout.Padding = UDim.new(0,6)
 
 layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-	scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
+	scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y)
 end)
 
+-- 🔥 SCAN BUTTON (AU DESSUS)
 local scanBtn = Instance.new("TextButton", frame)
 scanBtn.Size = UDim2.new(1,-20,0,40)
 scanBtn.Position = UDim2.new(0,10,1,-45)
@@ -128,15 +103,18 @@ scanBtn.Text = "SCAN"
 scanBtn.BackgroundColor3 = Color3.fromRGB(200,60,60)
 scanBtn.TextColor3 = Color3.new(1,1,1)
 scanBtn.Font = Enum.Font.GothamBold
+scanBtn.ZIndex = 5 -- IMPORTANT
 Instance.new("UICorner", scanBtn)
 
+-- CLEAR
 local function clear()
 	for _,v in ipairs(scroll:GetChildren()) do
 		if v:IsA("Frame") then v:Destroy() end
 	end
 end
 
-local function createItem(server)
+-- ITEM
+local function createItem(s)
 	local item = Instance.new("Frame", scroll)
 	item.Size = UDim2.new(1,-10,0,55)
 	item.BackgroundColor3 = Color3.fromRGB(20,20,30)
@@ -145,9 +123,8 @@ local function createItem(server)
 	local txt = Instance.new("TextLabel", item)
 	txt.Size = UDim2.new(0.6,0,1,0)
 	txt.BackgroundTransparency = 1
-	txt.Text = server.playing.."/"..server.maxPlayers
+	txt.Text = s.playing.."/"..s.maxPlayers
 	txt.TextColor3 = Color3.new(1,1,1)
-	txt.Font = Enum.Font.GothamBold
 
 	local join = Instance.new("TextButton", item)
 	join.Size = UDim2.new(0,80,0,35)
@@ -157,42 +134,36 @@ local function createItem(server)
 	Instance.new("UICorner", join)
 
 	join.MouseButton1Click:Connect(function()
-		if server.playing >= server.maxPlayers then
-			warn("Serveur plein")
-			return
+		print("JOIN:", s.id)
+		if s.playing < s.maxPlayers then
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, player)
 		end
-
-		pcall(function()
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
-		end)
 	end)
 end
 
+-- GET SERVERS
 local function getServers()
 	local url = "https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?limit=100"
-
-	local ok, response = pcall(function()
+	local ok, res = pcall(function()
 		return HttpService:GetAsync(url)
 	end)
+	if not ok then return {} end
 
-	if not ok or not response then
-		return {}
-	end
-
-	local data = HttpService:JSONDecode(response)
-
+	local data = HttpService:JSONDecode(res)
 	return data.data or {}
 end
 
+-- SCAN
 local function scan()
+	print("SCAN CLICKED")
+
 	clear()
 
 	local servers = getServers()
-
 	print("SERVERS:", #servers)
 
-	for _, s in ipairs(servers) do
-		if s.id and s.id ~= game.JobId then
+	for _,s in ipairs(servers) do
+		if s.id ~= game.JobId then
 			createItem(s)
 		end
 	end
