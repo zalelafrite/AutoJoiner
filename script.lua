@@ -424,76 +424,40 @@ local function getServers()
 	return simulated, false
 end
 
-local function detectTargets(serverData)
+local function scanWorkspace()
 	local found = {}
 
-	local seedBase = tostring(serverData.id or "server")
-	local count = tonumber(serverData.playing) or math.random(1, 8)
-
-	local hash = 0
-	for i = 1, #seedBase do
-		hash += string.byte(seedBase, i)
-	end
-
-	if hash % 3 == 0 then
-		local index = (hash % #TARGET_NAMES) + 1
-		table.insert(found, TARGET_NAMES[index])
-	end
-
-	if hash % 11 == 0 then
-		local index = ((hash + 7) % #TARGET_NAMES) + 1
-		local second = TARGET_NAMES[index]
-		if not table.find(found, second) then
-			table.insert(found, second)
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if (obj:IsA("Model") or obj:IsA("Folder")) and TARGETS[obj.Name] then
+			table.insert(found, obj.Name)
 		end
 	end
 
-	return found, count
+	return found
 end
 
+local visitedServers = {}
+
 local function processServers()
-	if isScanning then
-		return
-	end
+	if isScanning then return end
 
 	isScanning = true
 	scanButton.Text = "SCANNING..."
 	scanButton.AutoButtonColor = false
-	statusLabel.Text = "Fetching servers..."
+	statusLabel.Text = "Joining servers..."
 	clearResults()
 
-	local servers, usedLiveApi = getServers()
-	local matches = 0
+	local servers = getServers()
 
-	for index, serverData in ipairs(servers) do
-		statusLabel.Text = "Scanning server " .. index .. "/" .. #servers
+	for i, server in ipairs(servers) do
+		if visitedServers[server.id] then continue end
+		visitedServers[server.id] = true
 
-		local targets, playerCount = detectTargets(serverData)
-		for _, targetName in ipairs(targets) do
-			createItem(targetName, playerCount, serverData.id)
-			matches += 1
-		end
+		statusLabel.Text = "Joining server " .. i .. "/" .. #servers
 
-		task.wait(0.05)
+		TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
+		return
 	end
-
-	if usedLiveApi then
-		if matches > 0 then
-			statusLabel.Text = "Scan complete - " .. matches .. " match(es) found"
-		else
-			statusLabel.Text = "Scan complete - no matches found"
-		end
-	else
-		if matches > 0 then
-			statusLabel.Text = "Simulation complete - " .. matches .. " match(es) found"
-		else
-			statusLabel.Text = "Simulation complete - no matches found"
-		end
-	end
-
-	scanButton.Text = "SCAN"
-	scanButton.AutoButtonColor = true
-	isScanning = false
 end
 
 scanButton.MouseButton1Click:Connect(processServers)
