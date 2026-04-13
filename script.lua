@@ -157,3 +157,121 @@ UIS.InputChanged:Connect(function(input)
 		)
 	end
 end)
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+
+local ServerBrowser = {}
+
+function ServerBrowser.getServers(placeId)
+	if typeof(placeId) ~= "number" then
+		return {}
+	end
+
+	local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(placeId)
+
+	local ok, response = pcall(function()
+		return HttpService:GetAsync(url)
+	end)
+
+	if not ok or not response or response == "" then
+		return {}
+	end
+
+	local decodeOk, data = pcall(function()
+		return HttpService:JSONDecode(response)
+	end)
+
+	if not decodeOk or typeof(data) ~= "table" then
+		return {}
+	end
+
+	if typeof(data.data) ~= "table" then
+		return {}
+	end
+
+	return data.data
+end
+
+function ServerBrowser.filterServers(servers)
+	if typeof(servers) ~= "table" then
+		return {}
+	end
+
+	local filtered = {}
+	local seen = {}
+
+	for _, server in ipairs(servers) do
+		if typeof(server) == "table" then
+			local serverId = server.id
+			local playing = tonumber(server.playing)
+			local maxPlayers = tonumber(server.maxPlayers)
+
+			local isValidId = typeof(serverId) == "string" and serverId ~= ""
+			local hasSlots = playing and maxPlayers and playing < maxPlayers
+			local notCurrentServer = serverId ~= game.JobId
+			local notDuplicate = isValidId and not seen[serverId]
+
+			if isValidId and hasSlots and notCurrentServer and notDuplicate then
+				seen[serverId] = true
+				table.insert(filtered, {
+					id = serverId,
+					playing = playing,
+					maxPlayers = maxPlayers,
+				})
+			end
+		end
+	end
+
+	return filtered
+end
+
+function ServerBrowser.createItem(server)
+	if typeof(server) ~= "table" then
+		return nil
+	end
+
+	local jobId = server.id
+	local playing = tonumber(server.playing)
+	local maxPlayers = tonumber(server.maxPlayers)
+
+	if typeof(jobId) ~= "string" or jobId == "" then
+		return nil
+	end
+
+	if not playing or not maxPlayers then
+		return nil
+	end
+
+	return {
+		jobId = jobId,
+		playerCountText = ("%d/%d"):format(playing, maxPlayers),
+		playing = playing,
+		maxPlayers = maxPlayers,
+	}
+end
+
+function ServerBrowser.joinServer(placeId, jobId, player)
+	if typeof(placeId) ~= "number" then
+		return false, "invalid placeId"
+	end
+
+	if typeof(jobId) ~= "string" or jobId == "" then
+		return false, "invalid jobId"
+	end
+
+	if not player or not player:IsA("Player") then
+		return false, "invalid player"
+	end
+
+	local ok, err = pcall(function()
+		TeleportService:TeleportToPlaceInstance(placeId, jobId, player)
+	end)
+
+	if not ok then
+		return false, err
+	end
+
+	return true
+end
+
+return ServerBrowser
