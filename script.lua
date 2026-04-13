@@ -157,343 +157,102 @@ UIS.InputChanged:Connect(function(input)
 		)
 	end
 end)
--- =========================
--- FINDER SYSTEM (APPEND ONLY)
--- =========================
-
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 
-local placeId = game.PlaceId
+local ServerBrowser = {}
 
-local TARGETS = {
-	["Skibidi Toilet"] = true,
-	["Dragon Gingerini"] = true,
-	["Meowl"] = true,
-	["Strawberry Elephant"] = true,
-	["Foxini Lanternini"] = true,
-	["Cooki and Milki"] = true,
-	["Headless Horseman"] = true,
-	["Reinito Sleighito"] = true,
-	["La Casa Boo"] = true,
-	["Dragon Cannelloni"] = true,
-	["Hydra"] = true,
-	["Festive 67"] = true,
-	["Cloverat Clapat"] = true,
-	["Garama and Madundung"] = true,
-	["Jolly Jolly Sahur"] = true,
-	["Gingerat Gerat"] = true,
-	["La Supreme Combinasion"] = true,
-	["Los Hotspotsitos"] = true,
-	["Love Love Bear"] = true,
-	["Antonio"] = true,
-	["Celestial Pegasus"] = true,
-	["Rosey and Teddy"] = true,
-	["La Suprême Combinasion"] = true,
-	["Popcuru and Fizzuru"] = true,
-	["Capitano Moby"] = true,
-	["Burguro and Fryuro"] = true,
-	["Ketupat Bros"] = true,
-	["Los Amigos"] = true,
-	["La Secret Combinasion"] = true,
-	["Los Sekolahs"] = true,
-	["Signore Carapace"] = true,
-	["Fraggrama and Chocrama"] = true,
-	["La Food Combinasion"] = true,
-	["Elefanto Frigo"] = true,
-	["Spooky and Pumpky"] = true,
-	["Ginger Gerat"] = true,
-	["Sammyni Fattini"] = true,
-	["Los Spaghettis"] = true,
-	["Fishino Clownino"] = true,
-	["Tirilikalika Tirilikalako"] = true,
-}
+-- 🔥 GET SERVERS (avec pagination)
+function ServerBrowser.getServers(placeId)
+	if typeof(placeId) ~= "number" then return {} end
 
-local TARGET_NAMES = {
-	"Skibidi Toilet",
-	"Dragon Gingerini",
-	"Meowl",
-	"Strawberry Elephant",
-	"Foxini Lanternini",
-	"Cooki and Milki",
-	"Headless Horseman",
-	"Reinito Sleighito",
-	"La Casa Boo",
-	"Dragon Cannelloni",
-	"Hydra",
-	"Festive 67",
-	"Cloverat Clapat",
-	"Garama and Madundung",
-	"Jolly Jolly Sahur",
-	"Gingerat Gerat",
-	"La Supreme Combinasion",
-	"Los Hotspotsitos",
-	"Love Love Bear",
-	"Antonio",
-	"Celestial Pegasus",
-	"Rosey and Teddy",
-	"La Suprême Combinasion",
-	"Popcuru and Fizzuru",
-	"Capitano Moby",
-	"Burguro and Fryuro",
-	"Ketupat Bros",
-	"Los Amigos",
-	"La Secret Combinasion",
-	"Los Sekolahs",
-	"Signore Carapace",
-	"Fraggrama and Chocrama",
-	"La Food Combinasion",
-	"Elefanto Frigo",
-	"Spooky and Pumpky",
-	"Ginger Gerat",
-	"Sammyni Fattini",
-	"Los Spaghettis",
-	"Fishino Clownino",
-	"Tirilikalika Tirilikalako",
-}
+	local servers = {}
+	local cursor = nil
 
-local finderHolder = Instance.new("Frame")
-finderHolder.Parent = frame
-finderHolder.Name = "FinderHolder"
-finderHolder.BackgroundTransparency = 1
-finderHolder.Size = UDim2.new(1, -20, 1, -65)
-finderHolder.Position = UDim2.new(0, 10, 0, 55)
-finderHolder.ZIndex = 2
-
-local scanButton = Instance.new("TextButton")
-scanButton.Parent = finderHolder
-scanButton.Name = "ScanButton"
-scanButton.Size = UDim2.new(1, 0, 0, 36)
-scanButton.Position = UDim2.new(0, 0, 0, 0)
-scanButton.BackgroundColor3 = Color3.fromRGB(170, 20, 20)
-scanButton.Text = "SCAN"
-scanButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-scanButton.Font = Enum.Font.GothamBold
-scanButton.TextSize = 16
-scanButton.ZIndex = 3
-Instance.new("UICorner", scanButton).CornerRadius = UDim.new(0, 8)
-
-local scanStroke = Instance.new("UIStroke")
-scanStroke.Parent = scanButton
-scanStroke.Color = Color3.fromRGB(255, 90, 90)
-scanStroke.Thickness = 1.2
-
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Parent = finderHolder
-statusLabel.Name = "StatusLabel"
-statusLabel.BackgroundTransparency = 1
-statusLabel.Size = UDim2.new(1, 0, 0, 20)
-statusLabel.Position = UDim2.new(0, 0, 0, 42)
-statusLabel.Text = "Ready"
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 13
-statusLabel.TextColor3 = Color3.fromRGB(210, 210, 210)
-statusLabel.ZIndex = 3
-
-local listFrame = Instance.new("ScrollingFrame")
-listFrame.Parent = finderHolder
-listFrame.Name = "ResultsList"
-listFrame.Size = UDim2.new(1, 0, 1, -68)
-listFrame.Position = UDim2.new(0, 0, 0, 68)
-listFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
-listFrame.BorderSizePixel = 0
-listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-listFrame.ScrollBarThickness = 4
-listFrame.AutomaticCanvasSize = Enum.AutomaticSize.None
-listFrame.ZIndex = 2
-Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 10)
-
-local listPadding = Instance.new("UIPadding")
-listPadding.Parent = listFrame
-listPadding.PaddingTop = UDim.new(0, 8)
-listPadding.PaddingBottom = UDim.new(0, 8)
-listPadding.PaddingLeft = UDim.new(0, 8)
-listPadding.PaddingRight = UDim.new(0, 8)
-
-local listLayout = Instance.new("UIListLayout")
-listLayout.Parent = listFrame
-listLayout.Padding = UDim.new(0, 8)
-listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-local isScanning = false
-
-local function refreshCanvas()
-	task.defer(function()
-		listFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 16)
-	end)
-end
-
-listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshCanvas)
-
-local function clearResults()
-	for _, child in ipairs(listFrame:GetChildren()) do
-		if child:IsA("Frame") and child.Name == "ResultItem" then
-			child:Destroy()
+	repeat
+		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(placeId)
+		if cursor then
+			url = url .. "&cursor=" .. cursor
 		end
-	end
-	refreshCanvas()
-end
 
-local function createItem(brainrotName, playerCount, jobId)
-	local item = Instance.new("Frame")
-	item.Name = "ResultItem"
-	item.Parent = listFrame
-	item.Size = UDim2.new(1, -2, 0, 58)
-	item.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
-	item.BorderSizePixel = 0
-	item.ZIndex = 3
-	Instance.new("UICorner", item).CornerRadius = UDim.new(0, 10)
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Parent = item
-	stroke.Color = Color3.fromRGB(65, 65, 85)
-	stroke.Thickness = 1
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Parent = item
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Position = UDim2.new(0, 12, 0, 7)
-	nameLabel.Size = UDim2.new(1, -110, 0, 22)
-	nameLabel.Text = brainrotName
-	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 14
-	nameLabel.ZIndex = 4
-
-	local playersLabel = Instance.new("TextLabel")
-	playersLabel.Parent = item
-	playersLabel.BackgroundTransparency = 1
-	playersLabel.Position = UDim2.new(0, 12, 0, 30)
-	playersLabel.Size = UDim2.new(0, 100, 0, 18)
-	playersLabel.Text = tostring(playerCount) .. "/8"
-	playersLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-	playersLabel.TextXAlignment = Enum.TextXAlignment.Left
-	playersLabel.Font = Enum.Font.Gotham
-	playersLabel.TextSize = 12
-	playersLabel.ZIndex = 4
-
-	local joinButton = Instance.new("TextButton")
-	joinButton.Parent = item
-	joinButton.Size = UDim2.new(0, 82, 0, 34)
-	joinButton.Position = UDim2.new(1, -92, 0.5, -17)
-	joinButton.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
-	joinButton.Text = "JOIN"
-	joinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	joinButton.Font = Enum.Font.GothamBold
-	joinButton.TextSize = 13
-	joinButton.ZIndex = 4
-	Instance.new("UICorner", joinButton).CornerRadius = UDim.new(0, 8)
-
-	joinButton.MouseButton1Click:Connect(function()
-		if jobId and jobId ~= "" then
-			TeleportService:TeleportToPlaceInstance(placeId, jobId, player)
-		end
-	end)
-
-	refreshCanvas()
-end
-
-local function getServers()
-	local url = ("https://games.roblox.com/v1/games/%s/servers/Public?limit=100"):format(placeId)
-
-	local ok, response = pcall(function()
-		return HttpService:GetAsync(url)
-	end)
-
-	if ok then
-		local decodeOk, data = pcall(function()
-			return HttpService:JSONDecode(response)
+		local ok, response = pcall(function()
+			return HttpService:GetAsync(url)
 		end)
 
-		if decodeOk and data and data.data then
-			return data.data, true
+		if not ok or not response then break end
+
+		local data = HttpService:JSONDecode(response)
+
+		if data and data.data then
+			for _, s in ipairs(data.data) do
+				table.insert(servers, s)
+			end
 		end
-	end
 
-	local simulated = {}
-	for i = 1, 18 do
-		table.insert(simulated, {
-			id = HttpService:GenerateGUID(false),
-			playing = math.random(1, 8),
-			maxPlayers = 8,
-		})
-	end
+		cursor = data.nextPageCursor
+		task.wait(0.2)
 
-	return simulated, false
+	until not cursor
+
+	return servers
 end
 
-local function detectTargets(serverData)
-	local found = {}
+-- 🔥 FILTER
+function ServerBrowser.filterServers(servers)
+	local filtered = {}
+	local seen = {}
 
-	local seedBase = tostring(serverData.id or "server")
-	local count = tonumber(serverData.playing) or math.random(1, 8)
+	for _, server in ipairs(servers) do
+		local id = server.id
+		local playing = tonumber(server.playing)
+		local maxPlayers = tonumber(server.maxPlayers)
 
-	local hash = 0
-	for i = 1, #seedBase do
-		hash += string.byte(seedBase, i)
-	end
+		if id
+		and playing
+		and maxPlayers
+		and playing < maxPlayers
+		and id ~= game.JobId
+		and not seen[id] then
 
-	if hash % 3 == 0 then
-		local index = (hash % #TARGET_NAMES) + 1
-		table.insert(found, TARGET_NAMES[index])
-	end
+			seen[id] = true
 
-	if hash % 11 == 0 then
-		local index = ((hash + 7) % #TARGET_NAMES) + 1
-		local second = TARGET_NAMES[index]
-		if not table.find(found, second) then
-			table.insert(found, second)
+			table.insert(filtered, {
+				id = id,
+				playing = playing,
+				maxPlayers = maxPlayers
+			})
 		end
 	end
 
-	return found, count
+	return filtered
 end
 
-local function processServers()
-	if isScanning then
-		return
-	end
-
-	isScanning = true
-	scanButton.Text = "SCANNING..."
-	scanButton.AutoButtonColor = false
-	statusLabel.Text = "Fetching servers..."
-	clearResults()
-
-	local servers, usedLiveApi = getServers()
-	local matches = 0
-
-	for index, serverData in ipairs(servers) do
-		statusLabel.Text = "Scanning server " .. index .. "/" .. #servers
-
-		local targets, playerCount = detectTargets(serverData)
-		for _, targetName in ipairs(targets) do
-			createItem(targetName, playerCount, serverData.id)
-			matches += 1
-		end
-
-		task.wait(0.05)
-	end
-
-	if usedLiveApi then
-		if matches > 0 then
-			statusLabel.Text = "Scan complete - " .. matches .. " match(es) found"
-		else
-			statusLabel.Text = "Scan complete - no matches found"
-		end
-	else
-		if matches > 0 then
-			statusLabel.Text = "Simulation complete - " .. matches .. " match(es) found"
-		else
-			statusLabel.Text = "Simulation complete - no matches found"
-		end
-	end
-
-	scanButton.Text = "SCAN"
-	scanButton.AutoButtonColor = true
-	isScanning = false
+-- 🔥 ITEM
+function ServerBrowser.createItem(server)
+	return {
+		jobId = server.id,
+		playerCountText = ("%d/%d"):format(server.playing, server.maxPlayers),
+	}
 end
 
-scanButton.MouseButton1Click:Connect(processServers)
+-- 🔥 JOIN (avec retry)
+function ServerBrowser.joinServer(placeId, jobId, player)
+	if typeof(placeId) ~= "number" then return false end
+	if typeof(jobId) ~= "string" then return false end
+
+	for i = 1,3 do
+		local ok = pcall(function()
+			TeleportService:TeleportToPlaceInstance(placeId, jobId, player)
+		end)
+
+		if ok then
+			return true
+		end
+
+		task.wait(1)
+	end
+
+	return false
+end
+
+return ServerBrowser
