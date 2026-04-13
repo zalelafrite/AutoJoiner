@@ -408,20 +408,11 @@ local function getServers()
 		end)
 
 		if decodeOk and data and data.data then
-			return data.data, true
+			return data.data
 		end
 	end
 
-	local simulated = {}
-	for i = 1, 18 do
-		table.insert(simulated, {
-			id = HttpService:GenerateGUID(false),
-			playing = math.random(1, 8),
-			maxPlayers = 8,
-		})
-	end
-
-	return simulated, false
+	return {}
 end
 
 local function scanWorkspace()
@@ -449,25 +440,29 @@ local function processServers()
 
 	local servers = getServers()
 
-	for i, server in ipairs(servers) do
-		if visitedServers[server.id] then continue end
-		visitedServers[server.id] = true
-
-		statusLabel.Text = "Trying server " .. i .. "/" .. #servers
-
-		local success, err = pcall(function()
-			TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
-		end)
-
-		if success then
-			return -- OK → on quitte
-		else
-			warn("Teleport failed:", err)
-			task.wait(0.3) -- petit delay et on continue
-		end
+	if not servers or #servers == 0 then
+		statusLabel.Text = "No servers found"
+		scanButton.Text = "SCAN"
+		scanButton.AutoButtonColor = true
+		isScanning = false
+		return
 	end
 
-	-- si aucun serveur valide
+	for i, server in ipairs(servers) do
+		if visitedServers[server.id] then continue end
+
+		if server.playing and server.maxPlayers and server.playing >= server.maxPlayers then
+			continue
+		end
+
+		visitedServers[server.id] = true
+
+		statusLabel.Text = "Joining server " .. i .. "/" .. #servers
+
+		TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
+		return
+	end
+
 	statusLabel.Text = "No valid servers found"
 	scanButton.Text = "SCAN"
 	scanButton.AutoButtonColor = true
@@ -475,18 +470,13 @@ local function processServers()
 end
 
 scanButton.MouseButton1Click:Connect(processServers)
+
 task.spawn(function()
 	while true do
 		task.wait(3)
 
 		if isScanning then
-			local found = {}
-
-			for _, obj in ipairs(workspace:GetDescendants()) do
-				if (obj:IsA("Model") or obj:IsA("Folder")) and TARGETS[obj.Name] then
-					table.insert(found, obj.Name)
-				end
-			end
+			local found = scanWorkspace()
 
 			if #found > 0 then
 				for _, name in ipairs(found) do
