@@ -1,6 +1,8 @@
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
@@ -8,18 +10,15 @@ local gui = Instance.new("ScreenGui")
 gui.Parent = player.PlayerGui
 gui.ResetOnSpawn = false
 
--- 🔴 CONTOUR (FRAME DERRIÈRE)
-local border = Instance.new("Frame")
-border.Parent = gui
+-- 🔴 CONTOUR
+local border = Instance.new("Frame", gui)
 border.Size = UDim2.new(0, 356, 0, 436)
 border.Position = UDim2.new(0.05, -8, 0.2, -8)
 border.BackgroundColor3 = Color3.fromRGB(255,0,0)
 border.ZIndex = 0
 Instance.new("UICorner", border).CornerRadius = UDim.new(0,18)
 
--- 🔥 GRADIENT MÉTAL
-local borderGrad = Instance.new("UIGradient")
-borderGrad.Parent = border
+local borderGrad = Instance.new("UIGradient", border)
 borderGrad.Color = ColorSequence.new{
 	ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
 	ColorSequenceKeypoint.new(0.3, Color3.fromRGB(120,0,0)),
@@ -28,36 +27,29 @@ borderGrad.Color = ColorSequence.new{
 	ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
 }
 
--- animation métal
 task.spawn(function()
 	while true do
-		TweenService:Create(borderGrad, TweenInfo.new(2, Enum.EasingStyle.Linear), {
-			Rotation = borderGrad.Rotation + 180
-		}):Play()
+		TweenService:Create(borderGrad, TweenInfo.new(2), {Rotation = borderGrad.Rotation + 180}):Play()
 		task.wait(2)
 	end
 end)
 
--- FRAME PRINCIPAL
-local frame = Instance.new("Frame")
-frame.Parent = gui
+-- FRAME
+local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 340, 0, 420)
 frame.Position = UDim2.new(0.05, 0, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(10,10,15)
 frame.Active = true
 frame.ZIndex = 1
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", frame)
 
--- TOP BAR
-local top = Instance.new("Frame")
-top.Parent = frame
+-- TOP
+local top = Instance.new("Frame", frame)
 top.Size = UDim2.new(1,0,0,45)
 top.BackgroundColor3 = Color3.fromRGB(15,15,25)
-Instance.new("UICorner", top).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", top)
 
--- 🟥 TEXTE MÉTAL
-local title = Instance.new("TextLabel")
-title.Parent = top
+local title = Instance.new("TextLabel", top)
 title.Size = UDim2.new(1,0,1,0)
 title.BackgroundTransparency = 1
 title.Text = "FINDER"
@@ -65,11 +57,9 @@ title.Font = Enum.Font.GothamBlack
 title.TextSize = 20
 title.TextColor3 = Color3.fromRGB(255,60,60)
 
-local textGrad = Instance.new("UIGradient")
-textGrad.Parent = title
+local textGrad = Instance.new("UIGradient", title)
 textGrad.Color = borderGrad.Color
 
--- sync animation
 task.spawn(function()
 	while true do
 		textGrad.Rotation = borderGrad.Rotation
@@ -77,31 +67,27 @@ task.spawn(function()
 	end
 end)
 
--- 🔘 BOUTONS
+-- boutons
 local function createBtn(text, index)
-	local b = Instance.new("TextButton")
-	b.Parent = top
+	local b = Instance.new("TextButton", top)
 	b.Size = UDim2.new(0,36,0,30)
 	b.Position = UDim2.new(1, -(index * 42), 0.5, -15)
 	b.Text = text
 	b.BackgroundColor3 = Color3.fromRGB(30,30,40)
 	b.TextColor3 = Color3.new(1,1,1)
 	b.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
+	Instance.new("UICorner", b)
 	return b
 end
 
 local close = createBtn("X",1)
 local mini = createBtn("-",2)
 
--- ACTIONS
 close.MouseButton1Click:Connect(function()
 	gui:Destroy()
 end)
 
--- MINI ICON
-local miniIcon = Instance.new("TextButton")
-miniIcon.Parent = gui
+local miniIcon = Instance.new("TextButton", gui)
 miniIcon.Size = UDim2.new(0,40,0,40)
 miniIcon.Position = UDim2.new(1,-50,0.5,0)
 miniIcon.Text = "■"
@@ -120,7 +106,7 @@ miniIcon.MouseButton1Click:Connect(function()
 	miniIcon.Visible = false
 end)
 
--- DRAG
+-- drag
 local dragging = false
 local dragStart, startPos
 
@@ -142,117 +128,91 @@ UIS.InputChanged:Connect(function(input)
 	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - dragStart
 
-		frame.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-
-		border.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X - 8,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y - 8
-		)
+		frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		border.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X - 8, startPos.Y.Scale, startPos.Y.Offset + delta.Y - 8)
 	end
 end)
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
 
-local ServerBrowser = {}
+-- =========================
+-- 🔥 FINDER SYSTEM
+-- =========================
 
--- 🔥 GET SERVERS (avec pagination)
-function ServerBrowser.getServers(placeId)
-	if typeof(placeId) ~= "number" then return {} end
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Size = UDim2.new(1,-10,1,-100)
+scroll.Position = UDim2.new(0,5,0,50)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 4
 
-	local servers = {}
-	local cursor = nil
+local layout = Instance.new("UIListLayout", scroll)
+layout.Padding = UDim.new(0,6)
 
-	repeat
-		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100"):format(placeId)
-		if cursor then
-			url = url .. "&cursor=" .. cursor
-		end
-
-		local ok, response = pcall(function()
-			return HttpService:GetAsync(url)
-		end)
-
-		if not ok or not response then break end
-
-		local data = HttpService:JSONDecode(response)
-
-		if data and data.data then
-			for _, s in ipairs(data.data) do
-				table.insert(servers, s)
-			end
-		end
-
-		cursor = data.nextPageCursor
-		task.wait(0.2)
-
-	until not cursor
-
-	return servers
+local function clearList()
+	for _,v in ipairs(scroll:GetChildren()) do
+		if v:IsA("Frame") then v:Destroy() end
+	end
 end
 
--- 🔥 FILTER
-function ServerBrowser.filterServers(servers)
-	local filtered = {}
-	local seen = {}
+local function createItem(server)
+	local item = Instance.new("Frame", scroll)
+	item.Size = UDim2.new(1,-10,0,55)
+	item.BackgroundColor3 = Color3.fromRGB(20,20,30)
+	Instance.new("UICorner", item)
 
-	for _, server in ipairs(servers) do
-		local id = server.id
-		local playing = tonumber(server.playing)
-		local maxPlayers = tonumber(server.maxPlayers)
+	local txt = Instance.new("TextLabel", item)
+	txt.Size = UDim2.new(0.6,0,1,0)
+	txt.BackgroundTransparency = 1
+	txt.Text = server.playing.."/"..server.maxPlayers
+	txt.TextColor3 = Color3.new(1,1,1)
+	txt.Font = Enum.Font.GothamBold
 
-		if id
-		and playing
-		and maxPlayers
-		and playing < maxPlayers
-		and id ~= game.JobId
-		and not seen[id] then
+	local join = Instance.new("TextButton", item)
+	join.Size = UDim2.new(0,80,0,35)
+	join.Position = UDim2.new(1,-90,0.5,-17)
+	join.Text = "JOIN"
+	join.BackgroundColor3 = Color3.fromRGB(60,200,120)
+	Instance.new("UICorner", join)
 
-			seen[id] = true
+	join.MouseButton1Click:Connect(function()
+		pcall(function()
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
+		end)
+	end)
+end
 
-			table.insert(filtered, {
-				id = id,
-				playing = playing,
-				maxPlayers = maxPlayers
-			})
-		end
+local function getServers()
+	local url = "https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?limit=100"
+
+	local ok, data = pcall(function()
+		return HttpService:JSONDecode(game:HttpGet(url))
+	end)
+
+	if ok and data and data.data then
+		return data.data
 	end
 
-	return filtered
+	return {}
 end
 
--- 🔥 ITEM
-function ServerBrowser.createItem(server)
-	return {
-		jobId = server.id,
-		playerCountText = ("%d/%d"):format(server.playing, server.maxPlayers),
-	}
-end
+local function scan()
+	clearList()
 
--- 🔥 JOIN (avec retry)
-function ServerBrowser.joinServer(placeId, jobId, player)
-	if typeof(placeId) ~= "number" then return false end
-	if typeof(jobId) ~= "string" then return false end
+	local servers = getServers()
 
-	for i = 1,3 do
-		local ok = pcall(function()
-			TeleportService:TeleportToPlaceInstance(placeId, jobId, player)
-		end)
-
-		if ok then
-			return true
+	for _, s in ipairs(servers) do
+		if s.playing < s.maxPlayers and s.id ~= game.JobId then
+			createItem(s)
 		end
-
-		task.wait(1)
 	end
-
-	return false
 end
 
-return ServerBrowser
+-- bouton scan
+local scanBtn = Instance.new("TextButton", frame)
+scanBtn.Size = UDim2.new(1,-20,0,40)
+scanBtn.Position = UDim2.new(0,10,1,-45)
+scanBtn.Text = "SCAN"
+scanBtn.BackgroundColor3 = Color3.fromRGB(200,60,60)
+scanBtn.TextColor3 = Color3.new(1,1,1)
+scanBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", scanBtn)
+
+scanBtn.MouseButton1Click:Connect(scan)
