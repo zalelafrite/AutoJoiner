@@ -396,103 +396,65 @@ local function createItem(brainrotName, playerCount, jobId)
 end
 
 local function getServers()
-	local url = ("https://games.roblox.com/v1/games/%s/servers/Public?limit=100"):format(placeId)
+	local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?limit=100"
 
-	local ok, response = pcall(function()
-		return HttpService:GetAsync(url)
+	local response
+
+	-- tentative principale
+	local ok = pcall(function()
+		response = game:HttpGet(url)
 	end)
 
-	if ok then
-		local decodeOk, data = pcall(function()
-			return HttpService:JSONDecode(response)
+	-- fallback
+	if not ok or not response or response == "" then
+		ok = pcall(function()
+			response = HttpService:GetAsync(url)
 		end)
+	end
 
-		if decodeOk and data and data.data then
-			return data.data
+	-- si toujours rien
+	if not response or response == "" then
+		warn("HTTP FAILED")
+		return {}
+	end
+
+	-- decode JSON
+	local data
+	local success = pcall(function()
+		data = HttpService:JSONDecode(response)
+	end)
+
+	if not success or type(data) ~= "table" or type(data.data) ~= "table" then
+		warn("DECODE FAILED")
+		return {}
+	end
+
+	-- filtre serveurs valides
+	local validServers = {}
+
+	for _, server in ipairs(data.data) do
+		local id = server.id
+		local playing = tonumber(server.playing)
+		local maxPlayers = tonumber(server.maxPlayers)
+
+		if typeof(id) == "string"
+		and id ~= ""
+		and id ~= game.JobId
+		and playing ~= nil
+		and maxPlayers ~= nil then
+
+			table.insert(validServers, {
+				id = id,
+				playing = playing,
+				maxPlayers = maxPlayers
+			})
 		end
 	end
 
-	return {}
+	-- tri (serveurs avec moins de joueurs en premier)
+	table.sort(validServers, function(a, b)
+		return a.playing < b.playing
+	end)
+
+	return validServers
 end
-
-local function scanWorkspace()
-	local found = {}
-
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if (obj:IsA("Model") or obj:IsA("Folder")) and TARGETS[obj.Name] then
-			table.insert(found, obj.Name)
-		end
-	end
-
-	return found
-end
-
-local visitedServers = {}
-
-local function processServers()
-	if isScanning then return end
-
-	isScanning = true
-	scanButton.Text = "SCANNING..."
-	scanButton.AutoButtonColor = false
-	statusLabel.Text = "Fetching servers..."
-	clearResults()
-
-	local servers = getServers()
-
-	if not servers or #servers == 0 then
-		statusLabel.Text = "No servers found"
-		scanButton.Text = "SCAN"
-		scanButton.AutoButtonColor = true
-		isScanning = false
-		return
-	end
-
-	for i, server in ipairs(servers) do
-		if visitedServers[server.id] then continue end
-
-		if server.playing and server.maxPlayers and server.playing >= server.maxPlayers then
-			continue
-		end
-
-		visitedServers[server.id] = true
-
-		statusLabel.Text = "Joining server " .. i .. "/" .. #servers
-
-		TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
-		return
-	end
-
-	statusLabel.Text = "No valid servers found"
-	scanButton.Text = "SCAN"
-	scanButton.AutoButtonColor = true
-	isScanning = false
-end
-
-scanButton.MouseButton1Click:Connect(processServers)
-
-task.spawn(function()
-	while true do
-		task.wait(3)
-
-		if isScanning then
-			local found = scanWorkspace()
-
-			if #found > 0 then
-				for _, name in ipairs(found) do
-					createItem(name, #Players:GetPlayers(), game.JobId)
-				end
-
-				statusLabel.Text = "FOUND " .. #found .. " brainrot(s)"
-
-				scanButton.Text = "SCAN"
-				scanButton.AutoButtonColor = true
-				isScanning = false
-
-			else
-				statusLabel.Text = "No targets, switching..."
-				processServers()
-			end
-		end
-	end
-end)
