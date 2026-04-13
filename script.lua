@@ -444,7 +444,7 @@ local function processServers()
 	isScanning = true
 	scanButton.Text = "SCANNING..."
 	scanButton.AutoButtonColor = false
-	statusLabel.Text = "Joining servers..."
+	statusLabel.Text = "Fetching servers..."
 	clearResults()
 
 	local servers = getServers()
@@ -453,11 +453,56 @@ local function processServers()
 		if visitedServers[server.id] then continue end
 		visitedServers[server.id] = true
 
-		statusLabel.Text = "Joining server " .. i .. "/" .. #servers
+		statusLabel.Text = "Trying server " .. i .. "/" .. #servers
 
-		TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
-		return
+		local success, err = pcall(function()
+			TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
+		end)
+
+		if success then
+			return -- OK → on quitte
+		else
+			warn("Teleport failed:", err)
+			task.wait(0.3) -- petit delay et on continue
+		end
 	end
+
+	-- si aucun serveur valide
+	statusLabel.Text = "No valid servers found"
+	scanButton.Text = "SCAN"
+	scanButton.AutoButtonColor = true
+	isScanning = false
 end
 
 scanButton.MouseButton1Click:Connect(processServers)
+task.spawn(function()
+	while true do
+		task.wait(3)
+
+		if isScanning then
+			local found = {}
+
+			for _, obj in ipairs(workspace:GetDescendants()) do
+				if (obj:IsA("Model") or obj:IsA("Folder")) and TARGETS[obj.Name] then
+					table.insert(found, obj.Name)
+				end
+			end
+
+			if #found > 0 then
+				for _, name in ipairs(found) do
+					createItem(name, #Players:GetPlayers(), game.JobId)
+				end
+
+				statusLabel.Text = "FOUND " .. #found .. " brainrot(s)"
+
+				scanButton.Text = "SCAN"
+				scanButton.AutoButtonColor = true
+				isScanning = false
+
+			else
+				statusLabel.Text = "No targets, switching..."
+				processServers()
+			end
+		end
+	end
+end)
