@@ -6,8 +6,7 @@ local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
-local gui = Instance.new("ScreenGui")
-gui.Parent = player.PlayerGui
+local gui = Instance.new("ScreenGui", player.PlayerGui)
 gui.ResetOnSpawn = false
 
 -- 🔴 CONTOUR
@@ -15,15 +14,12 @@ local border = Instance.new("Frame", gui)
 border.Size = UDim2.new(0, 356, 0, 436)
 border.Position = UDim2.new(0.05, -8, 0.2, -8)
 border.BackgroundColor3 = Color3.fromRGB(255,0,0)
-border.ZIndex = 0
 Instance.new("UICorner", border).CornerRadius = UDim.new(0,18)
 
 local borderGrad = Instance.new("UIGradient", border)
 borderGrad.Color = ColorSequence.new{
 	ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
-	ColorSequenceKeypoint.new(0.3, Color3.fromRGB(120,0,0)),
 	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,180,180)),
-	ColorSequenceKeypoint.new(0.7, Color3.fromRGB(120,0,0)),
 	ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
 }
 
@@ -40,7 +36,6 @@ frame.Size = UDim2.new(0, 340, 0, 420)
 frame.Position = UDim2.new(0.05, 0, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(10,10,15)
 frame.Active = true
-frame.ZIndex = 1
 Instance.new("UICorner", frame)
 
 -- TOP
@@ -56,16 +51,6 @@ title.Text = "FINDER"
 title.Font = Enum.Font.GothamBlack
 title.TextSize = 20
 title.TextColor3 = Color3.fromRGB(255,60,60)
-
-local textGrad = Instance.new("UIGradient", title)
-textGrad.Color = borderGrad.Color
-
-task.spawn(function()
-	while true do
-		textGrad.Rotation = borderGrad.Rotation
-		task.wait()
-	end
-end)
 
 -- boutons
 local function createBtn(text, index)
@@ -87,26 +72,7 @@ close.MouseButton1Click:Connect(function()
 	gui:Destroy()
 end)
 
-local miniIcon = Instance.new("TextButton", gui)
-miniIcon.Size = UDim2.new(0,40,0,40)
-miniIcon.Position = UDim2.new(1,-50,0.5,0)
-miniIcon.Text = "■"
-miniIcon.Visible = false
-miniIcon.BackgroundColor3 = Color3.fromRGB(20,20,30)
-
-mini.MouseButton1Click:Connect(function()
-	frame.Visible = false
-	border.Visible = false
-	miniIcon.Visible = true
-end)
-
-miniIcon.MouseButton1Click:Connect(function()
-	frame.Visible = true
-	border.Visible = true
-	miniIcon.Visible = false
-end)
-
--- drag
+-- DRAG
 local dragging = false
 local dragStart, startPos
 
@@ -115,43 +81,49 @@ top.InputBegan:Connect(function(input)
 		dragging = true
 		dragStart = input.Position
 		startPos = frame.Position
-
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
 	end
 end)
 
 UIS.InputChanged:Connect(function(input)
 	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - dragStart
-
 		frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		border.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X - 8, startPos.Y.Scale, startPos.Y.Offset + delta.Y - 8)
 	end
 end)
 
 -- =========================
--- 🔥 FINDER SYSTEM
+-- 🔥 FINDER
 -- =========================
 
+-- SCROLL LIST
 local scroll = Instance.new("ScrollingFrame", frame)
 scroll.Size = UDim2.new(1,-10,1,-100)
 scroll.Position = UDim2.new(0,5,0,50)
 scroll.BackgroundTransparency = 1
-scroll.ScrollBarThickness = 4
+scroll.ScrollBarThickness = 5
 
 local layout = Instance.new("UIListLayout", scroll)
 layout.Padding = UDim.new(0,6)
 
-local function clearList()
+-- SCAN BUTTON
+local scanBtn = Instance.new("TextButton", frame)
+scanBtn.Size = UDim2.new(1,-20,0,40)
+scanBtn.Position = UDim2.new(0,10,1,-45)
+scanBtn.Text = "SCAN"
+scanBtn.BackgroundColor3 = Color3.fromRGB(200,60,60)
+scanBtn.TextColor3 = Color3.new(1,1,1)
+scanBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", scanBtn)
+
+-- CLEAR
+local function clear()
 	for _,v in ipairs(scroll:GetChildren()) do
 		if v:IsA("Frame") then v:Destroy() end
 	end
 end
 
+-- CREATE ITEM
 local function createItem(server)
 	local item = Instance.new("Frame", scroll)
 	item.Size = UDim2.new(1,-10,0,55)
@@ -173,17 +145,21 @@ local function createItem(server)
 	Instance.new("UICorner", join)
 
 	join.MouseButton1Click:Connect(function()
-		pcall(function()
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
-		end)
+		if server.playing >= server.maxPlayers then
+			warn("Serveur plein")
+			return
+		end
+
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
 	end)
 end
 
+-- GET SERVERS
 local function getServers()
 	local url = "https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?limit=100"
 
 	local ok, data = pcall(function()
-		return HttpService:JSONDecode(game:HttpGet(url))
+		return HttpService:JSONDecode(HttpService:GetAsync(url))
 	end)
 
 	if ok and data and data.data then
@@ -193,26 +169,19 @@ local function getServers()
 	return {}
 end
 
+-- SCAN
 local function scan()
-	clearList()
+	clear()
 
 	local servers = getServers()
 
+	print("SERVERS FOUND:", #servers)
+
 	for _, s in ipairs(servers) do
-		if s.playing < s.maxPlayers and s.id ~= game.JobId then
+		if s.id ~= game.JobId then
 			createItem(s)
 		end
 	end
 end
-
--- bouton scan
-local scanBtn = Instance.new("TextButton", frame)
-scanBtn.Size = UDim2.new(1,-20,0,40)
-scanBtn.Position = UDim2.new(0,10,1,-45)
-scanBtn.Text = "SCAN"
-scanBtn.BackgroundColor3 = Color3.fromRGB(200,60,60)
-scanBtn.TextColor3 = Color3.new(1,1,1)
-scanBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", scanBtn)
 
 scanBtn.MouseButton1Click:Connect(scan)
