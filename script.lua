@@ -396,65 +396,95 @@ local function createItem(brainrotName, playerCount, jobId)
 end
 
 local function getServers()
+	print("GET SERVERS CALLED")
+
 	local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?limit=100"
 
 	local response
 
-	-- tentative principale
 	local ok = pcall(function()
 		response = game:HttpGet(url)
 	end)
 
-	-- fallback
 	if not ok or not response or response == "" then
+		warn("HttpGet failed, trying fallback")
 		ok = pcall(function()
 			response = HttpService:GetAsync(url)
 		end)
 	end
 
-	-- si toujours rien
 	if not response or response == "" then
 		warn("HTTP FAILED")
 		return {}
 	end
 
-	-- decode JSON
 	local data
 	local success = pcall(function()
 		data = HttpService:JSONDecode(response)
 	end)
 
-	if not success or type(data) ~= "table" or type(data.data) ~= "table" then
+	if not success or not data or not data.data then
 		warn("DECODE FAILED")
 		return {}
 	end
 
-	-- filtre serveurs valides
-	local validServers = {}
+	print("SERVERS FOUND:", #data.data)
 
-	for _, server in ipairs(data.data) do
-		local id = server.id
-		local playing = tonumber(server.playing)
-		local maxPlayers = tonumber(server.maxPlayers)
+	return data.data
+end
 
-		if typeof(id) == "string"
-		and id ~= ""
-		and id ~= game.JobId
-		and playing ~= nil
-		and maxPlayers ~= nil then
+local visitedServers = {}
 
-			table.insert(validServers, {
-				id = id,
-				playing = playing,
-				maxPlayers = maxPlayers
-			})
-		end
+local function processServers()
+	print("SCAN CLICKED")
+
+	if isScanning then
+		print("Already scanning")
+		return
 	end
 
-	-- tri (serveurs avec moins de joueurs en premier)
-	table.sort(validServers, function(a, b)
-		return a.playing < b.playing
-	end)
+	isScanning = true
+	scanButton.Text = "SCANNING..."
+	scanButton.AutoButtonColor = false
+	statusLabel.Text = "Fetching servers..."
+	clearResults()
 
-	return validServers
+	local servers = getServers()
+
+	print("SERVERS RECEIVED:", #servers)
+
+	if not servers or #servers == 0 then
+		statusLabel.Text = "No servers found"
+		scanButton.Text = "SCAN"
+		scanButton.AutoButtonColor = true
+		isScanning = false
+		return
+	end
+
+	for i, server in ipairs(servers) do
+		if visitedServers[server.id] then continue end
+
+		if server.playing and server.maxPlayers and server.playing >= server.maxPlayers then
+			continue
+		end
+
+		visitedServers[server.id] = true
+
+		print("JOINING:", server.id)
+
+		statusLabel.Text = "Joining server " .. i .. "/" .. #servers
+
+		TeleportService:TeleportToPlaceInstance(placeId, server.id, player)
+		return
+	end
+
+	statusLabel.Text = "No valid servers"
+	scanButton.Text = "SCAN"
+	scanButton.AutoButtonColor = true
+	isScanning = false
 end
+
+scanButton.MouseButton1Click:Connect(function()
+	print("BUTTON CLICK DETECTED")
+	processServers()
+end)
